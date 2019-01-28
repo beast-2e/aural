@@ -1,0 +1,111 @@
+<html>
+  <head>
+    <script src="vue.js"></script>
+  </head>
+  <body>
+    Welcome to Aural Sex!
+    <div id="videoListdisplay">
+      <div v-for="videoObject,videoIndex in videoList">
+
+        <b>{{videoObject.title}}</b> by {{videoObject.author.name}} ({{videoObject.duration}}) <a :href="videoObject.link">link</a> <button @click="removeVideo(videoIndex)">Remove this video</button>
+      </div>
+
+      <br>
+      <div>Add a video:</div>
+      <input v-model="videoTextBox" @keydown.enter="addNewVideo" type="text">
+      <div>{{videoErrorText}}</div>
+      <button @click="addNewVideo">Add new video</button>
+
+      <br>
+      <br>
+      <div>Volume:</div>
+      <input type="range" min="0" max="100" v-model="volume" @change="changeVolume"/>
+    </div>
+
+
+    <script>
+
+      let ws = null;
+      function startWebsockets(){
+
+        ws = new WebSocket('ws://'+location.host);
+
+        ws.onmessage = function(event) {
+          // console.log("I got ",data);
+          var message = JSON.parse(event.data);
+          if(message.listupdate){
+            app.videoList = message.listupdate;
+          }
+          if(message.volume!==undefined){
+            app.volume = message.volume;
+          }
+          if(message.searcherror){
+            app.videoErrorText = "Sorry, we couldn't find that video. Try another search term."
+          }
+        };
+
+        ws.onclose = function(){
+          // Try to reconnect in 5 seconds
+          setTimeout(function(){startWebsockets()}, 5000);
+        };
+
+      }
+      startWebsockets();
+
+      function broadcastNewVideoList(videoList){
+        ws.send(JSON.stringify({
+          listupdate:videoList
+        }))
+      }
+
+      function searchForNewVideo(searchString){
+        ws.send(JSON.stringify({
+          search:searchString
+        }))
+      }
+      function setVolume(newVolumeLevel){
+        ws.send(JSON.stringify({
+          volume:newVolumeLevel
+        }))
+      }
+      /*function addNewVideo(){
+        let newVideoID = document.getElementById("newvideotext").value;
+        if(newVideoID){
+          videoList.push(newVideoID);
+          broadcastNewVideoList();
+        }
+      }*/
+
+
+      let app = new Vue({
+        el: "#videoListdisplay",
+        data(){
+          return {
+            videoList: [],
+            videoTextBox: "",
+            videoErrorText: "",
+            volume:0
+          }
+        },
+        methods:{
+          addNewVideo(){
+            // this.videoList.push(this.videoTextBox);
+            searchForNewVideo(this.videoTextBox);
+            this.videoTextBox="";
+            this.videoErrorText="";
+            // broadcastNewVideoList(this.videoList);
+          },
+          removeVideo(videoIndex){
+            this.videoList.splice(videoIndex,1);
+            broadcastNewVideoList(this.videoList);
+          },
+          changeVolume(){
+            setVolume(this.volume);
+          }
+        }
+
+
+      })
+    </script>
+  </body>
+</html>

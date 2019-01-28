@@ -1,0 +1,102 @@
+<!-- THIS FILE ISN'T NEEDED ANYMORE -->
+<html>
+  <head>
+    <title></title>
+  </head>
+  <body>
+    I'm the player that's always open on the pi
+    <!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
+    <div id="player"></div>
+    <div id="videolistdisplay"></div>
+
+    <script>
+
+      // 2. This code loads the IFrame Player API code asynchronously.
+      var tag = document.createElement('script');
+
+      tag.src = "https://www.youtube.com/iframe_api";
+      var firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+      // 3. This function creates an <iframe> (and YouTube player)
+      //    after the API code downloads.
+      let player;
+      function onYouTubeIframeAPIReady() {
+        player = new YT.Player('player', {
+          height: '390',
+          width: '640',
+          videoId: '',
+          events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+          }
+        });
+      }
+
+      // 4. The API will call this function when the video player is ready.
+
+      // 5. The API calls this function when the player's state changes.
+      //    The function indicates that when playing a video (state=1),
+      //    the player should play for six seconds and then stop.
+      function onPlayerStateChange(event) {
+        if (event.data == YT.PlayerState.ENDED){
+          loadNextVideo();
+        }
+      }
+
+      let currentLoadedVideo = '';
+      function loadFirstVideo(){
+        let videoID = videolist[0];
+        if(videoID){
+          if(currentLoadedVideo!=videoID){
+            player.loadVideoById(videoID);
+          }
+        }
+        else{
+          pauseVideo();
+        }
+        currentLoadedVideo = videoID;
+      }
+
+      function loadNextVideo(){
+        videolist.shift();
+        broadcastNewVideoList();
+        if(videolist.length>0){
+          loadFirstVideo();
+        }
+      }
+
+      function pauseVideo() {
+        player.pauseVideo();
+      }
+
+      let videolist = [];
+      let ws = null;
+      function onPlayerReady(event) {
+        ws = new WebSocket('ws://'+location.host);
+
+        // ws.onopen = function() {
+        //   ws.send('something');
+        // };
+
+        ws.onmessage = function(event) {
+          videolist = JSON.parse(event.data);
+          videoListWasUpdated();
+        };
+      }
+
+
+
+      function broadcastNewVideoList(){
+        ws.send(JSON.stringify(videolist))
+      }
+
+      function videoListWasUpdated(){
+        // Do something with the new list
+        document.getElementById("videolistdisplay").innerText = videolist;
+        loadFirstVideo();
+      }
+
+    </script>
+  </body>
+</html>

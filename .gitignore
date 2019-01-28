@@ -1,0 +1,14 @@
+# Node
+node_modules/
+
+# OS X Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.lnk
+*~
+
+# IDE FILES
+*.sublime-*
+*.tmproj

@@ -1,0 +1,16 @@
+{
+    "name": "AuralSex Youtube Hook",
+    "version": "1.0",
+    "description": "A magic invisible hand that changes the youtube page to whatever is playing",
+    "background": {
+      "scripts": ["background.js"],
+      "persistent": true
+    },
+    "content_scripts": [
+      {
+        "matches": ["https://www.youtube.com/*"],
+        "js": ["checkvideoended.js"]
+      }
+    ],
+    "manifest_version": 2
+  }
