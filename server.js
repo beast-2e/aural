@@ -88,7 +88,7 @@ wss.on("connection", function(ws){
             wss.broadcast(JSON.stringify({
               listupdate:videoList
             }));
-            console.log("Updated list with ",videoList.length," items")
+            console.log("Updated list with",videoList.length,"items")
           }
           else{
             // Couldn't find one, sorry
@@ -101,7 +101,7 @@ wss.on("connection", function(ws){
 
     }
     else if(message.volume!==undefined){
-      console.log("Received volume request for ", message.volume)
+      console.log("Received volume request for", message.volume)
       volume = Math.min(Math.max((+message.volume|0)||0,0),100);
       updateVolume();
       wss.broadcast(JSON.stringify({
@@ -115,7 +115,7 @@ wss.on("connection", function(ws){
       wss.broadcast(JSON.stringify({
         listupdate:videoList
       }));
-      console.log("Updated list with ",videoList.length," items")
+      console.log("Updated list with",videoList.length,"items")
     }
 
   });
@@ -126,5 +126,5 @@ wss.on("connection", function(ws){
 })
 
 server.listen(PORT, ()=>{
-  console.log("Server has started on port "+PORT);
+  console.log("Server has started on port",PORT);
 })

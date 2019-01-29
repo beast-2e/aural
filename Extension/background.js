@@ -44,12 +44,12 @@ function loadNextVideo(){
     videoList.shift();
   }
   broadcastNewVideoList();
-  loadFirstVideo();
+  loadFirstVideo(true);
 }
 
-function loadFirstVideo(){
+function loadFirstVideo(loadAnyways){
   let videoLink = videoList[0] && videoList[0].link || "";
-  if(videoLink != currentVideoLink){
+  if(videoLink != currentVideoLink||loadAnyways){
     loadVideo(videoLink);
   }
   currentVideoLink = videoLink;
