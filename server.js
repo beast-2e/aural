@@ -1,9 +1,8 @@
-const PORT = 8080;
+const PORT = process.env.PORT || parseInt(process.argv[2]) || 8080;
 
 const express = require("express");
 const WebSocket = require('ws');
 const ytsr = require('ytsr');
-const loudness = require('loudness');
 
 // Set up static server to serve files in the directory
 const app = express();
@@ -21,12 +20,34 @@ wss.broadcast = function broadcast(data) {
   });
 };
 
+let playlists = {
+  "Walcott Bathroom":[],
+  "Bemis Bathroom":[]
+};
 
-let videoList = [];
-let volume = 50;
-function updateVolume(){
-  console.log("VOLUME SET TO", volume);
-  loudness.setVolume(volume); // THIS MAY OR MAY NOT WORK
+function getFirstYoutubeVideo(searchTerm){
+  return new Promise(function(resolve,reject){
+    ytsr(searchTerm, {limit:5}, function(err, result){
+      // console.log(result)
+      if(err||result.items.length==0){
+        // Search error
+        resolve()
+      }
+      else{
+        let videoObject = result.items.filter((videoObject)=>{
+          return videoObject.type=="video"
+        })[0];
+        if(videoObject){
+          // We found it. Update everyone.
+          resolve(videoObject)
+        }
+        else{
+          // Couldn't find one, sorry
+          resolve()
+        }
+      }
+    })
+  })
 }
 
 wss.on("connection", function(ws){
@@ -34,17 +55,27 @@ wss.on("connection", function(ws){
 
     // Message can be one of two things
     // {
-    //   type:"search",
-    //   data:"Cat Videos"
+    //   search:{
+    //     term:"heyyayyayyayy",
+    //     for:"Walcott Bathroom"
+    //   }
     // }
-
 
     // {
-    //   type:"listupdate",
-    //   data: [ new video list... ]
+    //   remove:{
+    //     index:0,
+    //     for:"Walcott Bathroom"
+    //   }
     // }
 
-    // where data includes videos of the form
+    // Websocket server emits
+    // {
+    //   playlists:{
+    //     "Walcott Bathroom":[...videos...]
+    //   }
+    // }
+
+    // Videos come in the format
 
     /*
 
@@ -68,60 +99,42 @@ wss.on("connection", function(ws){
 
     var message = JSON.parse(data);
 
-    if(message.search){
-      console.log("Received search term ",message.search)
-      ytsr(message.search, {limit:5}, function(err, result){
-        // console.log(result)
-        if(err||result.items.length==0){
-          // Search error
-          ws.send(JSON.stringify({
-            searcherror:true
-          }))
+    if(typeof message.search === "object"){
+      console.log("SEARCH",message.search)
+      if(!(typeof message.search.term === "string")||!(message.search.place in playlists)){ return; }
+
+      getFirstYoutubeVideo(message.search.term).then(function(videoObject){
+        if(videoObject){
+          playlists[message.search.place].push(videoObject);
+          // Update only what changed
+          wss.broadcast(JSON.stringify({
+            playlists:{
+              [message.search.place]:playlists[message.search.place]
+            }
+          }));
         }
         else{
-          let videoObject = result.items.filter((videoObject)=>{
-            return videoObject.type=="video"
-          })[0];
-          if(videoObject){
-            // We found it. Update everyone.
-            videoList.push(videoObject);
-            wss.broadcast(JSON.stringify({
-              listupdate:videoList
-            }));
-            console.log("Updated list with",videoList.length,"items")
-          }
-          else{
-            // Couldn't find one, sorry
-            ws.send(JSON.stringify({
-              searcherror:true
-            }))
-          }
+          ws.send(JSON.stringify({searcherror:true}))
         }
       })
+    }
 
-    }
-    else if(message.volume!==undefined){
-      console.log("Received volume request for", message.volume)
-      volume = Math.min(Math.max((+message.volume|0)||0,0),100);
-      updateVolume();
+    if(typeof message.remove === "object"){
+      console.log("REMOVE",message.remove)
+      if(!(typeof message.remove.index === "number")||!(message.remove.place in playlists)){ return; }
+      playlists[message.remove.place].splice(message.remove.index,1);
+      // Update only what changed
       wss.broadcast(JSON.stringify({
-        volume:volume
+        playlists:{
+          [message.remove.place]:playlists[message.remove.place]
+        }
       }));
-    }
-    else if(message.listupdate){
-      console.log("Received list update")
-      // Make sure all videos have a youtube watch link
-      videoList = Array.from(message.listupdate||[]);
-      wss.broadcast(JSON.stringify({
-        listupdate:videoList
-      }));
-      console.log("Updated list with",videoList.length,"items")
     }
 
   });
+
   ws.send(JSON.stringify({
-    listupdate:videoList,
-    volume:volume
+    playlists
   }));
 })
 

@@ -2,10 +2,7 @@ function attachListener(){
   let videoElements = document.getElementsByTagName("video");
   if(videoElements.length>0){
     videoElements[0].addEventListener("ended",function(){
-      // alert("end");
-      chrome.runtime.sendMessage({data: "videoended"}, function(response) {
-        // console.log(response.farewell);
-      });
+      chrome.runtime.sendMessage({videoended:true});
     })
   }
   else{
@@ -15,5 +12,3 @@ function attachListener(){
   }
 }
 attachListener();
-
-

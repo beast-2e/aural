@@ -3,23 +3,30 @@
     <script src="vue.js"></script>
   </head>
   <body>
-    Welcome to Aural Sex!
-    <div id="videoListdisplay">
-      <div v-for="videoObject,videoIndex in videoList">
+    <div id="app">
+      <h2>Welcome to Aural Sex!</h2>
 
-        <b>{{videoObject.title}}</b> by {{videoObject.author.name}} ({{videoObject.duration}}) <a :href="videoObject.link">link</a> <button @click="removeVideo(videoIndex)">Remove this video</button>
+      <select v-model="place">
+        <option value="" disabled>Select a location</option>
+        <option v-for="playlist,l in playlists" :key="l" :value="l">{{l}}</option>
+      </select>
+
+      <div v-if="place">
+        <p v-if="playlists[place].length==0">
+          <em>No videos queued.</em>
+        </p>
+        <ol>
+        <li v-for="videoObject,index in playlists[place]">
+          <b>{{videoObject.title}}</b> by {{videoObject.author.name}} ({{videoObject.duration}}) <a :href="videoObject.link">link</a> <button @click="removeVideo(index)">Remove this video</button>
+        </li>
+        </ol>
+
+        <div>Add a video:</div>
+        <input v-model="videoTextBox" @keydown.enter="addNewVideo" type="text">
+        <div>{{videoErrorText}}</div>
+        <button @click="addNewVideo">Add new video</button>
       </div>
 
-      <br>
-      <div>Add a video:</div>
-      <input v-model="videoTextBox" @keydown.enter="addNewVideo" type="text">
-      <div>{{videoErrorText}}</div>
-      <button @click="addNewVideo">Add new video</button>
-
-      <br>
-      <br>
-      <div>Volume:</div>
-      <input type="range" min="0" max="100" v-model="volume" @change="changeVolume"/>
     </div>
 
 
@@ -31,13 +38,13 @@
         ws = new WebSocket('ws://'+location.host);
 
         ws.onmessage = function(event) {
-          // console.log("I got ",data);
+          console.log(event.data)
           var message = JSON.parse(event.data);
-          if(message.listupdate){
-            app.videoList = message.listupdate;
-          }
-          if(message.volume!==undefined){
-            app.volume = message.volume;
+          if(typeof message.playlists === "object"){
+            app.playlists = {
+              ...app.playlists,
+              ...message.playlists
+            }
           }
           if(message.searcherror){
             app.videoErrorText = "Sorry, we couldn't find that video. Try another search term."
@@ -52,59 +59,52 @@
       }
       startWebsockets();
 
-      function broadcastNewVideoList(videoList){
+      function requestSearch(term,place){
         ws.send(JSON.stringify({
-          listupdate:videoList
+          search:{
+            term,
+            place
+          }
         }))
       }
-
-      function searchForNewVideo(searchString){
+      function requestRemove(index,place){
         ws.send(JSON.stringify({
-          search:searchString
+          remove:{
+            index,
+            place
+          }
         }))
       }
-      function setVolume(newVolumeLevel){
+      function requestVolume(volume){
         ws.send(JSON.stringify({
-          volume:newVolumeLevel
+          volume
         }))
       }
-      /*function addNewVideo(){
-        let newVideoID = document.getElementById("newvideotext").value;
-        if(newVideoID){
-          videoList.push(newVideoID);
-          broadcastNewVideoList();
-        }
-      }*/
-
 
       let app = new Vue({
-        el: "#videoListdisplay",
+        el: "#app",
         data(){
           return {
-            videoList: [],
+            playlists: {},
+            place: "",
             videoTextBox: "",
-            videoErrorText: "",
-            volume:0
+            videoErrorText: ""
           }
         },
         methods:{
           addNewVideo(){
-            // this.videoList.push(this.videoTextBox);
-            searchForNewVideo(this.videoTextBox);
+            if(this.place){
+              requestSearch(this.videoTextBox,this.place);
+            }
             this.videoTextBox="";
             this.videoErrorText="";
-            // broadcastNewVideoList(this.videoList);
           },
-          removeVideo(videoIndex){
-            this.videoList.splice(videoIndex,1);
-            broadcastNewVideoList(this.videoList);
-          },
-          changeVolume(){
-            setVolume(this.volume);
+          removeVideo(index){
+            if(this.place){
+              requestRemove(index,this.place)
+            }
           }
         }
-
-
       })
     </script>
   </body>

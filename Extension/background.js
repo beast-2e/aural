@@ -1,71 +1,131 @@
 let ws = null;
-let videoList = [];
-let currentVideoLink = "";
+let playlists = {};
+let currentlyPlayingVideoLink = "";
+let reconnectTimeout = 0;
+let reconnectImmediate = false;
+let status = "";
+let host = "";
+let place = "";
+const READY_PATH = "/ready.html";
+
+function sendStatusToPopup(){
+  chrome.runtime.sendMessage({status});
+  console.log(status);
+}
+function setStatus(message){
+  if(status != message){
+    status = message;
+    sendStatusToPopup();
+  }
+}
 
 function startWebsockets(){
-  ws = new WebSocket('ws://localhost:8080');
-  ws.onopen = function() {
-    console.log("Websocket connected.")
-    // ws.send('');
-  };
+  playlists = {};
+  currentlyPlayingVideoLink = "";
 
-  ws.onmessage = function(event) {
-    console.log("I got ",event.data);
-    var message = JSON.parse(event.data);
-    if(message.listupdate){
-      videoList = message.listupdate;
-      videoListWasUpdated();
+  chrome.storage.local.get(function(storage){
+    host = storage.host||"";
+    place = storage.place||"";
+    if(!host){
+      setStatus("No host specified.")
+      ws = null;
     }
-  };
+    else{
+      setStatus("Connecting to "+host+"...")
+      ws = new WebSocket('ws://'+host);
 
-  ws.onclose = function(){
-    // Try to reconnect in 5 seconds
-    setTimeout(function(){startWebsockets()}, 5000);
-  };
-}
-startWebsockets();
+      ws.onmessage = function(event) {
+        // console.log(event.data)
+        var message = JSON.parse(event.data);
+        if(typeof message.playlists === "object"){
+          playlists = {
+            ...playlists,
+            ...message.playlists
+          }
+          if(!(place in playlists)){
+            setStatus("Connected to "+host+
+              (place?" but could not find \""+(place||"")+"\" in ":". Please specify from ")+"available locations: "+Object.keys(playlists).join(", "));
+          }
+          else if(place in message.playlists){
+            let firstVideo = message.playlists[place][0];
+            setStatus("Connected to "+host+" at "+place+". "+
+              (firstVideo?"PLAYING "+firstVideo.title+".":"READY."));
+            navigateToVideoIfChanged(firstVideo&&firstVideo.link);
+          }
+        }
+      };
 
-function broadcastNewVideoList(){
-  ws.send(JSON.stringify({
-    listupdate:videoList
-  }))
-}
-
-function videoListWasUpdated(){
-  console.log(videoList)
-  loadFirstVideo();
-  // Do something with the new list
-}
-
-function loadNextVideo(){
-  videoList.shift();
-  while(videoList[0]&&(!videoList[0].link||videoList[0].link.indexOf("https://www.youtube.com/watch")!==0)){
-    // Discard inelligible videos;
-    videoList.shift();
-  }
-  broadcastNewVideoList();
-  loadFirstVideo(true);
-}
-
-function loadFirstVideo(loadAnyways){
-  let videoLink = videoList[0] && videoList[0].link || "";
-  if(videoLink != currentVideoLink||loadAnyways){
-    loadVideo(videoLink);
-  }
-  currentVideoLink = videoLink;
-}
-
-function loadVideo(videoLink){
-  chrome.tabs.update(/*sender.tab.tabID,*/ {
-      url: (videoLink?videoLink:"http://example.com")
+      ws.onclose = function(){
+        setStatus("Disconnected from "+host+". Trying again in 5 seconds...")
+        // Try to reconnect in 5 seconds
+        reconnectTimeout = setTimeout(function(){startWebsockets()}, reconnectImmediate?300:5000);
+        reconnectImmediate = false;
+      };
+    }
   })
+}
+
+function setHostAndPlace(host,place){
+  chrome.storage.local.set({host, place}, function() {
+    if(!ws){
+      startWebsockets();
+    }
+    else if(ws.readyState == ws.OPEN){
+      reconnectImmediate = true;
+      ws.close();
+    }
+    else if(ws.readyState == ws.CLOSED){
+      clearTimeout(reconnectTimeout);
+      startWebsockets();
+    }
+  });
+}
+
+function navigateToVideoIfChanged(videoLink){
+  if((typeof videoLink=="string") && videoLink.indexOf("https://www.youtube.com/watch")!==0){
+    // Remove non-youtube videos for safety
+    videoEnded();
+  }
+  else{
+    let target = (typeof videoLink=="string") ? videoLink : host+READY_PATH;
+    if(currentlyPlayingVideoLink != target){
+      currentlyPlayingVideoLink = target;
+      console.log("NAVIGATING TO "+target);
+      chrome.tabs.update({
+          url: target
+      })
+    }
+  }
+}
+
+function videoEnded(){
+  // Force the player to renavigate on next update
+  currentlyPlayingVideoLink = "";
+  // Remove the first video
+  if(place&&ws.readyState == ws.OPEN){
+    ws.send(JSON.stringify({
+      remove:{
+        index: 0,
+        place
+      }
+    }))
+  }
 }
 
 chrome.runtime.onMessage.addListener(function(message, sender, reply) {
   // Listen for a video end event
-  if (message.data == "videoended") {
-    console.log("I GOT IT")
-    // Navigate the tab to the next video
-    loadNextVideo();
+  if (message.videoended) {
+    videoEnded();
+  }
+  if (message.requestStatus) {
+    sendStatusToPopup()
+  }
+  if (message.saveReload) {
+    setHostAndPlace(
+      message.saveReload.host,
+      message.saveReload.place
+    )
   }
 });
+
+startWebsockets();
