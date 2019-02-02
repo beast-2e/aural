@@ -87,7 +87,7 @@ function navigateToVideoIfChanged(videoLink){
     videoEnded();
   }
   else{
-    let target = (typeof videoLink=="string") ? videoLink : host+READY_PATH;
+    let target = (typeof videoLink=="string") ? videoLink : "http://"+host+READY_PATH;
     if(currentlyPlayingVideoLink != target){
       currentlyPlayingVideoLink = target;
       console.log("NAVIGATING TO "+target);
