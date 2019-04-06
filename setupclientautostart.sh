@@ -1,5 +1,7 @@
 #!/bin/bash
 # Must be run with sudo
+# sudo sh setupclientautostart.sh
+
 
 # Allow raspi display to be on even when not plugged in
 sed -i 's/#hdmi_force_hotplug=1/hdmi_force_hotplug=1/' /boot/config.txt
