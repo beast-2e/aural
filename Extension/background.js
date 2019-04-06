@@ -34,6 +34,14 @@ function startWebsockets(){
       setStatus("Connecting to "+host+"...")
       ws = new WebSocket('ws://'+host);
 
+      ws.onopen = function(event) {
+        ws.send(JSON.stringify({
+          register:{
+            place
+          }
+        }))
+      }
+
       ws.onmessage = function(event) {
         // console.log(event.data)
         var message = JSON.parse(event.data);

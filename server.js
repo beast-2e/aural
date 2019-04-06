@@ -21,8 +21,9 @@ wss.broadcast = function broadcast(data) {
 };
 
 let playlists = {
-  "Walcott Bathroom":[],
-  "Bemis Bathroom":[]
+  // Example
+  // "Walcott Bathroom":[],
+  // "Bemis Bathroom":[]
 };
 
 function getFirstYoutubeVideo(searchTerm){
@@ -53,22 +54,32 @@ function getFirstYoutubeVideo(searchTerm){
 wss.on("connection", function(ws){
   ws.on("message", function(data){
 
-    // Message can be one of two things
+    // Message can be one of three things
+
+    // Client requests a youtube search term be played
     // {
     //   search:{
     //     term:"heyyayyayyayy",
-    //     for:"Walcott Bathroom"
+    //     place:"Walcott Bathroom"
     //   }
     // }
 
+    // Client removes a video at a particular index
     // {
     //   remove:{
     //     index:0,
-    //     for:"Walcott Bathroom"
+    //     place:"Walcott Bathroom"
     //   }
     // }
 
-    // Websocket server emits
+    // Chrome extension requests a new location to be registered
+    // {
+    //   register:{
+    //     place:"Walcott Bathroom"
+    //   }
+    // }
+
+    // Websocket server emits in response:
     // {
     //   playlists:{
     //     "Walcott Bathroom":[...videos...]
@@ -123,6 +134,7 @@ wss.on("connection", function(ws){
       console.log("REMOVE",message.remove)
       if(!(typeof message.remove.index === "number")||!(message.remove.place in playlists)){ return; }
       playlists[message.remove.place].splice(message.remove.index,1);
+
       // Update only what changed
       wss.broadcast(JSON.stringify({
         playlists:{
@@ -131,6 +143,22 @@ wss.on("connection", function(ws){
       }));
     }
 
+    if(typeof message.register === "object"){
+      if(!(typeof message.register.place === "string")){ return; }
+
+      // Add new location
+      if(!(message.register.place in playlists)){
+        playlists[message.register.place] = [];
+      }
+
+      // Update only what changed
+      wss.broadcast(JSON.stringify({
+        playlists:{
+          [message.register.place]:playlists[message.register.place]
+        }
+      }));
+
+    }
   });
 
   ws.send(JSON.stringify({
