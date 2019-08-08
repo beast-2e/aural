@@ -12,6 +12,7 @@ Software :
 flip the switch uuudddudud to get the each pi's IP over speakers
 - everything runs off vue/node js
 - a couple scripts in the repo : volume switch,  restart pi whenever lose wifi (bemis pi had the weird problem of freezing whenever it lost wifi)
+
 Hardware : 
 - pi 3.5mm out --> amp --> speaker
 - volume switch pulled up--> digital pin on pi as input ( see walcott as example )
