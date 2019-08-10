@@ -32,7 +32,7 @@ that should download all the packages necessary for aural to run properly
 - load the extension in the repo into google chromium ( have to be in developer mode)
 - enter IP to connect to : auralsex.mit.edu
 - Enter location : <location name> (note : this will be the name showing up in auralsex.mit.edu dropdown)
-- also install these chromium extensions : uBlock Origin (or some other adblocker), Audio Only Youtube (pi 3a+ wifi can't handle loading both video and audio smoothly)
+- also install these chromium extensions : uBlock Origin (or some other adblocker), Audio Only Youtube (pi 3a+ wifi can't handle loading both video and audio smoothly), youtube nonstop (https://chrome.google.com/webstore/detail/youtube-nonstop/nlkaejimjacpillmajjnopmpbkbnocid)
 - enable vncviewer in pi's settings (it will make everyone's life easier)
 
 TIPs : 
